@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>동물이름 자음모음탐정 — v6 (4x4, 5x5 격자 · 100단어)</title>
+<style>
+  :root{--bg:#fffaf2; --ink:#222; --success:#19b77a; --muted:#333; --card:#ffffff; --border:#e9e9e9; --accent:#3e7bff;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Pretendard,Apple SD Gothic Neo,Noto Sans KR,sans-serif}
+  .wrap{max-width:920px;margin:0 auto;padding:18px 16px 40px}
+  header{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:10px}
+  h1{font-size:20px;margin:0}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{appearance:none;border:0;border-radius:12px;padding:10px 14px;font-weight:800;background:var(--accent);color:#fff;cursor:pointer}
+  .btn.secondary{background:#eee;color:#333}
+  .btn.toggle{background:#fff;color:#333;border:2px solid #ddd}
+  .btn.toggle.active{border-color:var(--accent);color:var(--accent)}
+  .card{background:var(--card);border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.07);padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border:1px solid var(--border)}
+  .badge{display:inline-flex;gap:6px;align-items:center;background:#f5f7ff;color:#2d3d7a;border:1px solid #d8e0ff;border-radius:999px;padding:6px 10px;font-weight:700}
+  .scene{position:relative;margin-top:12px;border-radius:16px;overflow:hidden;background:#fff;border:1px solid var(--border)}
+  .scene::before{content:"";display:block;padding-top:70%}
+  svg{position:absolute;inset:0;width:100%;height:100%}
+  .letter{fill:var(--muted);font-weight:900;cursor:pointer;user-select:none;paint-order:stroke;stroke:#fff;stroke-width:2px}
+  .letter.correct{fill:var(--success)!important;pointer-events:none}
+  .letter.wrong{animation:shake .18s linear}
+  @keyframes shake{0%,100%{transform:translate(0,0)}25%{transform:translate(-1.6px,0)}50%{transform:translate(1.6px,0)}75%{transform:translate(-1px,0)}}
+  .chip{background:#fff;border:1px dashed #ddd;border-radius:10px;padding:6px 10px;font-weight:800;margin-right:6px}
+  .chip.done{background:#eafff4;border-color:#b9f0d6;color:#0c8a5b}
+  .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .hint{font-size:13px;color:#666;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>동물이름 자음모음탐정 <span style="font-size:14px;color:#666">| v6</span></h1>
+    <div class="controls">
+      <button id="easyBtn" class="btn toggle active" type="button">난이도 하 · 4×4</button>
+      <button id="hardBtn" class="btn toggle" type="button">난이도 상 · 5×5</button>
+      <button id="newWord" class="btn" type="button">✨ 새로운 동물 단어</button>
+      <button id="reshuffle" class="btn secondary" type="button">다시 섞기</button>
+    </div>
+  </header>
+
+  <div class="card">
+    <div class="badge">🎯 <span id="prompt"></span></div>
+    <div class="row">｜ 찾아야 할 글자(모두): <span id="targets" style="display:inline-block"></span></div>
+  </div>
+
+  <div class="scene" id="scene" aria-label="퍼즐 장면 (클릭해서 글자를 찾아요)"></div>
+
+  <div class="hint">※ 격자 고정 배치로 빈칸 없이 꽉 채웁니다. 같은 단어도 매번 <b>위치가 랜덤</b>이에요. (힌트색 없음, 맞춘 글자만 초록색)</div>
+</div>
+
+<script>
+const WORDS = ["강아지", "고양이", "토끼", "햄스터", "기린", "코끼리", "사자", "호랑이", "표범", "치타", "하마", "코뿔소", "곰", "판다", "여우", "늑대", "스라소니", "너구리", "오소리", "수달", "다람쥐", "고슴도치", "두더지", "두루미", "참새", "비둘기", "독수리", "부엉이", "올빼미", "까치", "까마귀", "앵무새", "타조", "펭귄", "바다표범", "해달", "돌고래", "고래", "상어", "문어", "오징어", "게", "가재", "새우", "해파리", "거북이", "도마뱀", "악어", "개구리", "두꺼비", "메뚜기", "사마귀", "잠자리", "나비", "꿀벌", "개미", "딱정벌레", "모기", "파리", "풍뎅이", "말", "소", "돼지", "양", "염소", "닭", "오리", "거위", "칠면조", "공작", "병아리", "비버", "알파카", "라마", "카피바라", "하이에나", "미어캣", "카멜레온", "이구아나", "맹꽁이", "고라니", "사슴", "노루", "산양", "바다사자", "바다코끼리", "청설모", "참거북", "고래상어", "라쿤", "퓨마", "스컹크", "호저", "담비", "너구리강", "살모사", "도룡뇽", "표범도마뱀", "붉은여우", "산토끼"];
+
+const CHO=["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+const JUNG=["ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"];
+const JONG=["","ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+
+function splitHangulFull(word){const base=0xAC00,arr=[];for(const ch of word){const code=ch.codePointAt(0);if(code>=0xAC00&&code<=0xD7A3){const s=code-base,cho=Math.floor(s/(21*28)),jung=Math.floor((s%(21*28))/28),jong=s%28;arr.push(CHO[cho],JUNG[jung]);if(JONG[jong]!="")arr.push(JONG[jong]);}}return arr;}
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function el(tag, attrs={}, children=[]){const ns="http://www.w3.org/2000/svg";const e=document.createElementNS(ns,tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);for(const c of children)e.appendChild(c);return e;}
+
+function buildGrid(svg, totalCells){const cols=Math.sqrt(totalCells)|0;const rows=cols;const cellW=100/cols;const cellH=70/rows;const font=Math.min(cellW,cellH)*0.65;const cells=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)cells.push([r,c]);shuffle(cells);return {cells,cellW,cellH,font,rows,cols};}
+
+let difficulty="easy"; // easy=4x4, hard=5x5
+let currentWord="";
+
+function render(newRandom=false){
+  if(newRandom||!currentWord)currentWord=WORDS[Math.floor(Math.random()*WORDS.length)];
+  const totalCells=difficulty==="easy"?16:25;
+
+  const sceneEl=document.getElementById("scene");sceneEl.innerHTML="";
+  const svg=el("svg");svg.setAttribute("viewBox","0 0 100 70");svg.setAttribute("role","img");svg.setAttribute("aria-label",currentWord+" 퍼즐");
+  sceneEl.appendChild(svg);
+  svg.appendChild(el("rect",{x:0,y:0,width:"100%",height:"100%",fill:"#fff"}));
+
+  const targets=splitHangulFull(currentWord); // duplicates kept
+  const distractorPool=["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ","ㅏ","ㅓ","ㅗ","ㅜ","ㅡ","ㅣ","ㅐ","ㅔ"];
+  const letters=targets.slice();
+  while(letters.length<totalCells)letters.push(distractorPool[Math.floor(Math.random()*distractorPool.length)]);
+  shuffle(letters);
+
+  const grid=buildGrid(svg,totalCells);
+  const nodes=[];
+  letters.forEach(ch=>{const n=el("text",{class:"letter","data-ch":ch,"text-anchor":"middle","font-size":String(grid.font)});n.textContent=ch;nodes.push(n);});
+  for(let i=0;i<nodes.length;i++){const [r,c]=grid.cells[i];const x=c*grid.cellW+grid.cellW/2;const y=r*grid.cellH+grid.cellH*0.7;nodes[i].setAttribute("x",x);nodes[i].setAttribute("y",y);svg.appendChild(nodes[i]);}
+
+  document.getElementById("prompt").textContent="‘"+currentWord+"’ 단어의 글자를 모두 찾으세요";
+  const tg=document.getElementById("targets");tg.innerHTML="";
+  const remaining=targets.slice();
+  function refreshChips(){tg.innerHTML="";remaining.forEach(ch=>{const span=document.createElement("span");span.className="chip";span.textContent=ch;tg.appendChild(span);});if(remaining.length===0){const done=document.createElement("span");done.className="chip done";done.textContent="완료!";tg.appendChild(done);}}
+  refreshChips();
+
+  nodes.forEach(n=>{n.addEventListener("click",()=>{const ch=n.getAttribute("data-ch");const idx=remaining.indexOf(ch);if(idx>-1){remaining.splice(idx,1);n.classList.add("correct");refreshChips();}else{n.classList.add("wrong");setTimeout(()=>n.classList.remove("wrong"),140);}}, {passive:true});});
+}
+
+document.getElementById("newWord").addEventListener("click",()=>render(true));
+document.getElementById("reshuffle").addEventListener("click",()=>render(false));
+document.getElementById("easyBtn").addEventListener("click",()=>{difficulty="easy";document.getElementById("easyBtn").classList.add("active");document.getElementById("hardBtn").classList.remove("active");render(false);});
+document.getElementById("hardBtn").addEventListener("click",()=>{difficulty="hard";document.getElementById("hardBtn").classList.add("active");document.getElementById("easyBtn").classList.remove("active");render(false);});
+render(true);
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+GitHub Pages 업로드: 저장소 루트에 index.html 업로드 → Settings → Pages → Branch: main / Root → Save
